@@ -1,0 +1,73 @@
+import { Component, Input, OnInit } from '@angular/core';
+import { FormGroup, FormArray } from '@angular/forms';
+
+@Component({
+  selector: 'swft-form-builder-status-tracker-details',
+  templateUrl: './status-tracker-details.component.html',
+  styleUrls: ['./status-tracker-details.component.css']
+})
+export class StatusTrackerDetailsComponent implements OnInit {
+
+  @Input() index?: number; // Optional index from the parent
+  @Input() formGroup!: FormGroup; // The form group passed from the parent
+
+  statusTrackerFormGroup!: FormGroup;
+
+  ngOnInit(): void {
+    const formType = this.formBuilderService.metadataFormGroup.controls.formIntakeStructure?.value?.formType?.toLowerCase();
+    
+    // Check the form type to handle OneToOne or OneToMany
+    if (formType === formTypes.OneToOne.toLowerCase()) {
+      // Direct access for OneToOne
+      this.statusTrackerFormGroup = this.formBuilderService.metadataFormGroup?.controls?.statusTrackerFormGroup as FormGroup;
+    
+    } else if (formType === formTypes.OneToMany.toLowerCase() && this.index !== undefined) {
+      // Array access for OneToMany with the index
+      const formArray = this.formBuilderService.metadataFormGroup?.controls?.formChildRequest as FormArray;
+      this.statusTrackerFormGroup = formArray.at(this.index) as FormGroup;
+    }
+
+    // Now, you can use this.statusTrackerFormGroup as your form group for further logic
+    this.setupValueChangeListeners();
+  }
+
+  // Example method to listen for form control changes
+  setupValueChangeListeners(): void {
+    this.statusTrackerFormGroup?.get('statusTrackerVisibility')?.valueChanges.subscribe((value: any) => {
+      console.log('Status Tracker Visibility changed:', value);
+      this.statusTrackerDetailsReset(value);
+    });
+
+    this.formBuilderService.metadataFormGroup?.controls?.formDestinationType?.valueChanges.subscribe((value: any) => {
+      this.statusTrackerDetailsReset(value);
+      this.updateFormBasedOnDestinationType(value);
+    });
+
+    // Other value changes subscriptions...
+  }
+
+  // Example methods that handle form updates
+  statusTrackerDetailsReset(value: any): void {
+    // Your logic for resetting status tracker details
+  }
+
+  updateFormBasedOnDestinationType(value: any): void {
+    const destinationType = this.formBuilderService.metadataFormGroup?.controls?.formDestinationType?.value;
+    if (Object.values(DestinationTypes).includes(destinationType)) {
+      // Do something based on destinationType
+    }
+    this.updateForm();
+  }
+
+  updateForm(): void {
+    // Your form update logic here
+  }
+}
+
+HTML Parent
+<div *ngFor="let item of getChildRequest().controls; index as i" [formGroupName]="i">
+  <swft-form-builder-status-tracker-details 
+    [index]="i" 
+    [formGroup]="item">
+  </swft-form-builder-status-tracker-details>
+</div>
