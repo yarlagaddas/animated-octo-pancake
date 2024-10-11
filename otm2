@@ -1,0 +1,42 @@
+import { Component, Input, OnInit } from '@angular/core';
+import { FormGroup, FormArray } from '@angular/forms';
+
+@Component({
+  selector: 'swft-form-builder-status-tracker-details',
+  templateUrl: './status-tracker-details.component.html',
+  styleUrls: ['./status-tracker-details.component.css']
+})
+export class StatusTrackerDetailsComponent implements OnInit {
+
+  @Input() index!: number; // The index passed from the parent component
+  statusTrackerFormGroup!: FormGroup; // The form group for status tracker
+
+  ngOnInit(): void {
+    const formType = this.formBuilderService.metadataFormGroup.controls.formIntakeStructure?.value?.formType?.toLowerCase();
+    
+    // Handle OneToMany case by accessing the formChildRequest array at the given index
+    if (formType === formTypes.OneToMany.toLowerCase()) {
+      const formArray = this.formBuilderService.metadataFormGroup?.get('formChildRequest') as FormArray;
+      const formGroupAtIndex = formArray.at(this.index) as FormGroup;
+
+      // Access the statusTrackerFormGroup within the form group at the current index
+      this.statusTrackerFormGroup = formGroupAtIndex?.get('statusTrackerFormGroup') as FormGroup;
+    }
+
+    this.setupValueChangeListeners();
+  }
+
+  setupValueChangeListeners(): void {
+    this.statusTrackerFormGroup?.get('statusTrackerVisibility')?.valueChanges.subscribe((value: any) => {
+      console.log('Status Tracker Visibility changed:', value);
+      this.statusTrackerDetailsReset(value);
+    });
+
+    // Add other value change listeners as needed
+  }
+
+  statusTrackerDetailsReset(value: any): void {
+    // Your logic for resetting status tracker details
+  }
+
+}
