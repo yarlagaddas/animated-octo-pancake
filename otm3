@@ -1,0 +1,12 @@
+if (this.metadataFormGroup.controls.formIntakeStructure?.value?.formType?.toLowerCase() === this.formType?.OneToOne?.toLowerCase()) {
+    // For OneToOne, directly access statusTrackerFormGroup
+    this.metadataFormGroup.controls.statusTrackerFormGroup.get("selectedLanguages")?.setValue(langArray);
+} 
+else if (this.metadataFormGroup.controls.formIntakeStructure?.value?.formType?.toLowerCase() === this.formType?.OneToMany?.toLowerCase()) {
+    // For OneToMany, access the statusTrackerFormGroup inside formChildRequest array
+    const formArray = this.formBuilderService.metadataFormGroup?.get('formChildRequest') as UntypedFormArray;
+    const formGroupAtIndex = formArray.at(0) as UntypedFormGroup;  // Assuming you want the first group
+
+    // Now access the statusTrackerFormGroup inside the formGroupAtIndex
+    formGroupAtIndex.get('statusTrackerFormGroup')?.get("selectedLanguages")?.setValue(langArray);
+}
