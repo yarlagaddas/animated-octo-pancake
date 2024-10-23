@@ -1,0 +1,39 @@
+// Assuming you have a requestTypes array with multiple requests
+if (savedFormDetailsOnResumeForm?.requestTypes?.length) {
+    // Loop through each request type
+    savedFormDetailsOnResumeForm.requestTypes.forEach((requestType: any, index: number) => {
+        // Call prepopulateStatusTrackerValues for each request, passing the index
+        this.prepopulateStatusTrackerValues(
+            requestType?.trackerTitleFormat,
+            requestType?.formStepperMiles,
+            index // Pass the index to handle multiple requests
+        );
+    });
+}
+
+prepopulateStatusTrackerValues(trackerTitleFormat: any, formStepperMiles: any, index: number) {
+    let langArray = [];
+
+    // Your existing logic to populate langArray
+    for (const lang of trackerTitleFormat) {
+        let step1 = formStepperMiles?.find((item: any) => item?.milestoneNumber === 1);
+        let langGroup = {
+            language: lang?.masterLanguage2?.language,
+            isoCode: lang?.masterLanguage2?.isoCode,
+            // Your other logic...
+        };
+        langArray.push(langGroup);
+    }
+
+    // Sorting or other operations
+    this.sortLangArray(langArray);
+
+    // Set the value for OneToOne or OneToMany based on the index and form type
+    if (this.metadataFormGroup.controls.formIntakeStructure?.value?.formType?.toLowerCase() === this.formType?.OneToOne?.toLowerCase()) {
+        this.metadataFormGroup.controls.statusTrackerFormGroup.get("selectedLanguages")?.setValue(langArray);
+    } else if (this.metadataFormGroup.controls.formIntakeStructure?.value?.formType?.toLowerCase() === this.formType?.OneToMany?.toLowerCase()) {
+        const formArray = this.formBuilderService.metadataFormGroup?.get('formChildRequest') as UntypedFormArray;
+        const formGroupAtIndex = formArray.at(index) as UntypedFormGroup; // Use the passed index here
+        formGroupAtIndex.get('statusTrackerFormGroup')?.get("selectedLanguages")?.setValue(langArray);
+    }
+}
