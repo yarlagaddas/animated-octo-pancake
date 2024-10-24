@@ -1,0 +1,253 @@
+Thank you for the clarification. Given your scenario, where each element in the getChildRequest array can have multiple statusTrackerFormGroup form groups (in the form of an array), and these dynamic form groups are being incorrectly added only to the first index, we need a slightly different approach to handle this situation.
+
+Key Points to Address:
+
+	1.	Each element in getChildRequest can have its own statusTrackerFormGroup.
+	2.	Each statusTrackerFormGroup can have its own dynamic form groups (steps).
+	3.	We need to ensure that the dynamic form groups are correctly added to the respective index in the getChildRequest array.
+
+Updated Plan:
+
+	1.	Loop through getChildRequest: For each element in getChildRequest, access its statusTrackerFormGroup and ensure that the form groups (steps) are added dynamically at the correct index for each statusTrackerFormGroup.
+	2.	Add steps dynamically to the correct statusTrackerFormGroup: For each statusTrackerFormGroup, ensure that the correct number of steps is added.
+	3.	Handle multiple indices: Ensure that the logic works for both “OneToOne” and “OneToMany” cases where different indices of getChildRequest may have varying numbers of form groups in the statusTrackerFormGroup.
+
+Revised Code Strategy:
+
+1. Loop through getChildRequest and handle each statusTrackerFormGroup dynamically.
+
+Updated prepopulateStatusTrackerValues:
+
+prepopulateStatusTrackerValues(trackerTitleFormat: any, formStepperMiles: any, index: number) {
+    let langArray = [];
+
+    // Assuming each iteration through trackerTitleFormat creates only one langGroup
+    for (const lang of trackerTitleFormat) {
+        let step1 = formStepperMiles?.find((item: any) => item?.milestoneNumber === 1);
+        let langGroup = {
+            language: lang?.masterLanguage2?.language,
+            isoCode: lang?.masterLanguage2?.isoCode,
+            steps: []  // Initialize an empty steps array, we'll fill this later
+        };
+
+        // Populate steps for the current langGroup
+        formStepperMiles?.forEach((step: any) => {
+            if (step?.masterLanguage?.id === lang?.masterLanguage2?.id) {
+                langGroup.steps.push({
+                    stepperLabel: step?.stepperLabel,
+                    stepperSubtext: step?.stepperSubtext,
+                    alternateStepperLabel: step?.alternateStepperLabel,
+                    alternateStepperSubtext: step?.alternateStepperSubtext
+                });
+            }
+        });
+
+        // Push langGroup with its steps to langArray (though it will have one element per iteration)
+        langArray.push(langGroup);
+    }
+
+    // Now handle dynamic addition of form groups to each `getChildRequest` index
+    if (this.metadataFormGroup.controls.formIntakeStructure?.value?.formType?.toLowerCase() === this.formType?.OneToOne?.toLowerCase()) {
+        // Handle OneToOne scenario
+        this.metadataFormGroup.controls.statusTrackerFormGroup.get("selectedLanguages")?.setValue(langArray);
+    } else if (this.metadataFormGroup.controls.formIntakeStructure?.value?.formType?.toLowerCase() === this.formType?.OneToMany?.toLowerCase()) {
+        // Handle OneToMany scenario
+        const formArray = this.formBuilderService.metadataFormGroup?.get('formChildRequest') as UntypedFormArray;
+        
+        // Get the current form group for the given index in `getChildRequest`
+        const formGroupAtIndex = formArray.at(index) as UntypedFormGroup;
+        
+        // Get the statusTrackerFormGroup inside the formGroupAtIndex
+        const statusTrackerFormArray = formGroupAtIndex.get('statusTrackerFormGroup') as UntypedFormArray;
+
+        // Now dynamically add form groups (steps) to statusTrackerFormGroup
+        this.updateLangGroup(statusTrackerFormArray, langArray);  // Pass the langArray for the current element
+    }
+}
+
+2. Update updateLangGroup to handle each statusTrackerFormGroup dynamically.
+
+In this function, we will loop through each statusTrackerFormGroup and add the correct number of form groups (steps) based on the data in langArray.
+
+Updated updateLangGroup:
+
+updateLangGroup(statusTrackerFormArray: UntypedFormArray, langArray: any[]) {
+    // Loop through each `langArray` entry and update the corresponding form group
+    langArray.forEach((langGroup, groupIndex) => {
+        let numOfSteps = langGroup?.steps?.length;
+
+        while (numOfSteps > 0) {
+            // Add a new step group dynamically to the correct statusTrackerFormGroup
+            this.addStepToTrackerForm(statusTrackerFormArray, groupIndex);  // Pass the index and array
+            numOfSteps--;
+        }
+    });
+}
+
+3. Add steps dynamically to the correct statusTrackerFormGroup.
+
+Updated addStepToTrackerForm Method:
+
+addStepToTrackerForm(statusTrackerFormArray: UntypedFormArray, index: number): void {
+    // Get the steps array for the specific index of statusTrackerFormGroup
+    const steps = this.getSteps(statusTrackerFormArray.at(index));  // Use the index to target the right group
+
+    // Add a new step group (form group) dynamically
+    steps.push(this.createStepGroup('', ''));  // Add a new step group
+
+    if (steps?.value?.length === 6) {
+        this.addStepperDisabled = true;  // Logic to disable stepper after 6 steps
+    }
+
+    if (steps?.value?.length > 1) {
+        this.showDeleteStepper = true;  // Show delete stepper if there are multiple steps
+    }
+}
+
+4. Ensure that getSteps works correctly for each statusTrackerFormGroup.
+
+Updated getSteps:
+
+getSteps(languageGroup: AbstractControl): UntypedFormArray {
+    return languageGroup.get('steps') as UntypedFormArray;  // This works as-is to get the steps array
+}
+
+How this logic works:
+
+	1.	prepopulateStatusTrackerValues: This method ensures that you are working with each statusTrackerFormGroup dynamically based on its index within the getChildRequest array. It processes the langArray and calls updateLangGroup to add the steps.
+	2.	updateLangGroup: Loops through each langGroup in the langArray and dynamically adds steps (form groups) to the corresponding statusTrackerFormGroup using addStepToTrackerForm.
+	3.	addStepToTrackerForm: Dynamically adds steps to the correct statusTrackerFormGroup based on the index.
+
+Conclusion:
+
+This approach dynamically handles the multiple elements within getChildRequest, ensuring that the statusTrackerFormGroup form groups are created at the correct index. This should now work for both “OneToOne” and “OneToMany” scenarios, where each statusTrackerFormGroup might have a different number of steps, and these form groups are properly handled at the correct index.
+
+
+#################################################
+
+Thank you for the clarification. Based on your explanation, where each childRequest element contains only one statusTrackerFormGroup, and inside that statusTrackerFormGroup, there is a form array for selectedLanguages, followed by the form controls or form groups related to the steps, we need to adjust the approach accordingly.
+
+In this case, you are dealing with a single statusTrackerFormGroup per child request, and we need to ensure that the dynamic form controls for each selected language (or other form data) are being correctly added inside this statusTrackerFormGroup.
+
+Updated Approach:
+
+	1.	Access the statusTrackerFormGroup directly for each child request.
+	2.	Access the selectedLanguages form array inside the statusTrackerFormGroup.
+	3.	Dynamically add form controls (steps) for each selected language inside the corresponding statusTrackerFormGroup.
+
+Updated Code Logic
+
+1. prepopulateStatusTrackerValues:
+
+In this method, you will access the statusTrackerFormGroup for each childRequest and dynamically populate the form groups for the selected languages.
+
+prepopulateStatusTrackerValues(trackerTitleFormat: any, formStepperMiles: any, index: number) {
+    let langArray = [];
+
+    // Assuming each iteration through trackerTitleFormat creates only one langGroup
+    for (const lang of trackerTitleFormat) {
+        let step1 = formStepperMiles?.find((item: any) => item?.milestoneNumber === 1);
+        let langGroup = {
+            language: lang?.masterLanguage2?.language,
+            isoCode: lang?.masterLanguage2?.isoCode,
+            steps: []  // Initialize an empty steps array, we'll fill this later
+        };
+
+        // Populate steps for the current langGroup
+        formStepperMiles?.forEach((step: any) => {
+            if (step?.masterLanguage?.id === lang?.masterLanguage2?.id) {
+                langGroup.steps.push({
+                    stepperLabel: step?.stepperLabel,
+                    stepperSubtext: step?.stepperSubtext,
+                    alternateStepperLabel: step?.alternateStepperLabel,
+                    alternateStepperSubtext: step?.alternateStepperSubtext
+                });
+            }
+        });
+
+        // Push langGroup with its steps to langArray (though it will have one element per iteration)
+        langArray.push(langGroup);
+    }
+
+    // Now handle dynamic addition of form groups to `statusTrackerFormGroup` for each child request
+    const formArray = this.formBuilderService.metadataFormGroup?.get('formChildRequest') as UntypedFormArray;
+
+    // Get the current child request's form group
+    const formGroupAtIndex = formArray.at(index) as UntypedFormGroup;
+
+    // Access the statusTrackerFormGroup within the child request's form group
+    const statusTrackerFormGroup = formGroupAtIndex.get('statusTrackerFormGroup') as UntypedFormGroup;
+
+    // Populate the selected languages inside the statusTrackerFormGroup
+    this.populateSelectedLanguages(statusTrackerFormGroup, langArray);
+}
+
+2. populateSelectedLanguages:
+
+This function will dynamically add selected languages and their associated steps into the statusTrackerFormGroup.
+
+populateSelectedLanguages(statusTrackerFormGroup: UntypedFormGroup, langArray: any[]) {
+    // Access the selectedLanguages form array inside the statusTrackerFormGroup
+    const selectedLanguagesFormArray = statusTrackerFormGroup.get('selectedLanguages') as UntypedFormArray;
+
+    // Loop through the langArray and dynamically add form controls
+    langArray.forEach((langGroup, langIndex) => {
+        // Create a form group for each selected language
+        const languageFormGroup = this.createLanguageFormGroup(langGroup);
+
+        // Push the form group to the selectedLanguages form array
+        selectedLanguagesFormArray.push(languageFormGroup);
+
+        // Now handle the steps for each language group
+        this.updateStepsForLanguage(languageFormGroup, langGroup.steps);
+    });
+}
+
+3. createLanguageFormGroup:
+
+This function creates a form group for each selected language, which can later be populated with form controls like stepperLabel, stepperSubtext, etc.
+
+createLanguageFormGroup(langGroup: any): UntypedFormGroup {
+    return this.fb.group({
+        language: [langGroup.language],
+        isoCode: [langGroup.isoCode],
+        steps: this.fb.array([])  // Initialize an empty steps array
+    });
+}
+
+4. updateStepsForLanguage:
+
+This method will dynamically add the steps for each selected language inside the statusTrackerFormGroup.
+
+updateStepsForLanguage(languageFormGroup: UntypedFormGroup, steps: any[]) {
+    const stepsArray = languageFormGroup.get('steps') as UntypedFormArray;
+
+    // Loop through the steps and dynamically add them to the steps array
+    steps.forEach(step => {
+        stepsArray.push(this.createStepGroup(step.stepperLabel, step.alternateStepperLabel));
+    });
+}
+
+5. createStepGroup:
+
+This function creates a form group for each step associated with a selected language.
+
+createStepGroup(stepperLabel: string, alternateStepperLabel: string): UntypedFormGroup {
+    return this.fb.group({
+        stepperLabel: [stepperLabel, Validators.required],
+        stepperSubtext: [''],  // Add other form controls as needed
+        alternateStepperLabel: [alternateStepperLabel],
+        alternateStepperSubtext: ['']
+    });
+}
+
+Key Points:
+
+	1.	prepopulateStatusTrackerValues: This method now dynamically populates the statusTrackerFormGroup for each childRequest by calling populateSelectedLanguages.
+	2.	populateSelectedLanguages: This function dynamically adds each selected language to the statusTrackerFormGroup and then populates the steps for each language.
+	3.	Steps Handling: The steps for each selected language are dynamically added inside the statusTrackerFormGroup using updateStepsForLanguage.
+	4.	index Handling: The index ensures that each childRequest is handled independently, and form groups are correctly added inside each statusTrackerFormGroup.
+
+Conclusion:
+
+This revised approach ensures that each childRequest element has its statusTrackerFormGroup correctly populated with selected languages and their associated steps. The index parameter ensures that form groups are dynamically created for each statusTrackerFormGroup at the correct location in the form array. This should now work for both “OneToOne” and “OneToMany” cases where each child request has its unique statusTrackerFormGroup.
