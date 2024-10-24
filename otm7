@@ -1,0 +1,137 @@
+Sure! I will provide you with the complete code that includes the modified prepopulateStatusTrackerValues method and the supporting methods to ensure everything works together seamlessly.
+
+Complete Code:
+
+1. prepopulateStatusTrackerValues:
+
+This method is responsible for populating the status tracker values dynamically for both “OneToOne” and “OneToMany” forms.
+
+prepopulateStatusTrackerValues(trackerTitleFormat: any, formStepperMiles: any, index: number) {
+    let langArray = [];
+
+    // Populate langArray with data from trackerTitleFormat and formStepperMiles
+    for (const lang of trackerTitleFormat) {
+        let step1 = formStepperMiles?.find((item: any) => item?.milestoneNumber === 1);
+        let langGroup = {
+            language: lang?.masterLanguage2?.language,
+            isoCode: lang?.masterLanguage2?.isoCode,
+            nameFormat: lang?.titleFormat,
+            stepperLabel: step1?.stepperLabel,
+            stepperSubtext1: step1?.stepperSubtext,
+            alternateStepperLabel: step1?.alternateStepperValue,
+            alternateStepperSubtext1: step1?.alternateSubtext,
+            steps: [] as Array<any> // Initialize an empty steps array
+        };
+
+        // Populate additional steps for the current language group
+        formStepperMiles?.forEach((step: any) => {
+            if (step?.masterLanguage?.id === lang?.masterLanguage2?.id && step?.milestoneNumber !== 1) {
+                const mile = {
+                    stepperLabel: step?.stepperValue,
+                    stepperSubtext: step?.stepperSubtext,
+                    alternateStepperLabel: step?.alternateStepperValue,
+                    alternateStepperSubtext: step?.alternateSubtext,
+                };
+                langGroup.steps.push(mile);
+            }
+        });
+
+        langArray.push(langGroup); // Push the populated language group to langArray
+    }
+
+    // Check if multiple letter languages exist
+    if (this.metadataFormGroup.controls?.formLetterLanguages?.value.length > 1) {
+        this.sortLangArray(langArray); // Sort the languages if necessary
+    }
+
+    // Update language groups if needed based on destinationType
+    if (this.metadataFormGroup.controls?.formDestinationType?.value?.destinationName !== this.destinationType.SWFT_FULFILLMENT) {
+        this.statusTracker?.updateLangGroup(langArray); // Update the language group if necessary
+    }
+
+    // Handle the form types and set values dynamically based on form type
+    if (this.metadataFormGroup.controls?.formIntakeStructure?.value?.formType?.toLowerCase() === this.formType?.OneToOne?.toLowerCase()) {
+        // For OneToOne, directly set values in the status tracker form group
+        this.metadataFormGroup.controls.statusTrackerFormGroup.get("selectedLanguages")?.setValue(langArray);
+    } else if (this.metadataFormGroup.controls?.formIntakeStructure?.value?.formType?.toLowerCase() === this.formType?.OneToMany?.toLowerCase()) {
+        // For OneToMany, we need to dynamically address each child request
+        const formArray = this.formBuilderService.metadataFormGroup?.get('formChildRequest') as UntypedFormArray;
+        
+        // Loop through each child request and update their status tracker form group dynamically
+        formArray.controls.forEach((formGroup, childIndex) => {
+            const statusTrackerFormGroup = (formGroup as UntypedFormGroup).get('statusTrackerFormGroup') as UntypedFormGroup;
+            statusTrackerFormGroup.get('selectedLanguages')?.setValue(langArray);
+        });
+    }
+}
+
+2. updateLangGroup:
+
+This method dynamically updates the steps in the form groups for each language in the langArray.
+
+updateLangGroup(langArray: any[]) {
+    langArray.forEach((langGroup, groupIndex) => {
+        let numOfSteps = langGroup?.steps?.length - 1;
+
+        while (numOfSteps > 0) {
+            this.addStepToTrackerForm(langGroup.steps, groupIndex);  // Pass the steps and index to dynamically add steps
+            numOfSteps--;
+        }
+    });
+}
+
+3. addStepToTrackerForm:
+
+This method dynamically adds steps to the correct form group in the statusTrackerFormGroup.
+
+addStepToTrackerForm(steps: any[], index: number): void {
+    // Get the steps array for the selected language at the correct index
+    const stepsArray = this.getSteps(this.selectedLanguagesFormArray.controls[index]);
+
+    // Add a new step group dynamically to the steps array
+    steps.forEach((step) => {
+        stepsArray.push(this.createStepGroup(step.stepperLabel, step.alternateStepperLabel));
+    });
+
+    if (stepsArray?.value?.length === 6) {
+        this.addStepperDisabled = true;  // Disable if max steps reached
+    }
+
+    if (stepsArray?.value?.length > 1) {
+        this.showDeleteStepper = true;  // Show delete button if more than one step
+    }
+}
+
+4. getSteps:
+
+This method returns the steps form array from a specific language group.
+
+getSteps(languageGroup: AbstractControl): UntypedFormArray {
+    return languageGroup.get('steps') as UntypedFormArray;  // This works to get the steps array
+}
+
+5. createStepGroup:
+
+This method creates a new form group for each step.
+
+createStepGroup(stepperLabel: string, alternateStepperLabel: string): UntypedFormGroup {
+    return this.fb.group({
+        stepperLabel: [stepperLabel, Validators.required],
+        stepperSubtext: [''],  // Add other form controls as needed
+        alternateStepperLabel: [alternateStepperLabel],
+        alternateStepperSubtext: ['']
+    });
+}
+
+Key Flow:
+
+	1.	prepopulateStatusTrackerValues: Populates the languages and steps dynamically based on the form type (“OneToOne” or “OneToMany”).
+	2.	updateLangGroup: Updates the dynamic steps for each language group by calling the addStepToTrackerForm method.
+	3.	addStepToTrackerForm: Adds steps dynamically to the correct statusTrackerFormGroup using the getSteps method.
+	4.	createStepGroup: Builds individual form groups for each step and adds them dynamically to the selected language’s form array.
+
+Conclusion:
+
+With this complete set of code, you should be able to handle both “OneToOne” and “OneToMany” scenarios dynamically. Each child request in the “OneToMany” scenario will have its own statusTrackerFormGroup populated with the correct language data and dynamic steps. The logic ensures that the steps are added to the correct form group for each child request.
+
+Let me know if you need any further adjustments!
